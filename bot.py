@@ -1,8 +1,8 @@
 import telebot
 import random
-from groq import Groq
-
+import re
 import os
+from groq import Groq
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
@@ -11,86 +11,149 @@ CARD_NUMBER = os.environ.get("CARD_NUMBER")
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 client = Groq(api_key=GROQ_API_KEY)
 
-user_free_left = {}
-FREE_LIMIT = 3
 OWNER_ID = 1249820876
+FREE_LIMIT = 3
 
-WELCOME = """Привет! Я делаю продающие описания товаров для Avito, Wildberries и Ozon за 10 секунд.
+user_free_left = {}      # сколько бесплатных запросов осталось у пользователя
+user_history = {}        # история диалога с каждым пользователем (для правок текста)
+pro_users = set()        # список ID пользователей с активной подпиской PRO
 
-Просто напиши мне название товара и пару деталей (цвет, состояние, особенности) — я верну готовый текст.
+def clean_text(text):
+    return re.sub(r'[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]', '', text)
 
-Пример: "Кроссовки Nike Air Max, белые, новые, размер 42"
+SYSTEM_PROMPT = """Ты профессиональный копирайтер маркетплейсов и эксперт в моде, кроссовках, брендах, технике и товарах в целом. Ты помогаешь продавцам создавать продающие описания и разбираешься в конкретных моделях, их истории, материалах и характеристиках.
 
-У тебя {free} бесплатных описаний. Дальше — 299 руб/месяц безлимит (просто напиши /pro)."""
+Общие правила для всех ответов:
+- Пиши только на русском языке, грамотно, живым литературным языком, без канцелярита
+- Никогда не используй иероглифы или символы других алфавитов
+- Если товар это известная модель, используй свои реальные знания о ней: материалы, технологии, историю, особенности
+- Не выдумывай факты, которых не знаешь точно, в таком случае пиши обобщённо, но убедительно
+- Если пользователь просит переписать, сократить, добавить характеристики, изменить тон, выполняй правку, опираясь на предыдущий текст в этом диалоге, а не начинай заново с нуля
+- Если пользователь просит описание для карточки товара Wildberries или Ozon, пиши развёрнуто и структурированно: короткое цепляющее вступление, далее блок с раскрытием особенностей и преимуществ, затем блок Характеристики с перечислением через перенос строки, в конце короткий призыв к покупке. Общий объём для карточки 8-12 предложений
+- Если пользователь просит описание для Avito, пиши короче и проще, как от частного продавца, 5-7 предложений
+- Если пользователь явно просит характеристики, дай отдельным компактным списком через перенос строки: бренд, модель, материал верха и подошвы, технологии, страна происхождения бренда, для каких условий подходит
+- Если речь идёт о конкретной узнаваемой модели, в конце основного текста добавь короткий блок Где искать: перечисли 2-3 типа площадок, где обычно продаются такие товары, и кратко оцени насколько модель распространена или редка. Обязательно уточни, что точную доступность и цену нужно проверять на площадках напрямую
+- Не пиши конкретные несуществующие ссылки, только называй типы платформ
+- Без хештегов и эмодзи
+- В самом конце каждого ответа отдельной строкой добавляй: Могу переписать другим тоном, сократить, расширить характеристики или сделать под другую площадку, просто напиши что изменить"""
+
+def get_user_state(uid):
+    if uid not in user_history:
+        user_history[uid] = []
+    return user_history[uid]
+
+def is_unlimited(uid):
+    return uid == OWNER_ID or uid in pro_users
 
 @bot.message_handler(commands=['start'])
 def start(message):
     uid = message.from_user.id
+    user_history[uid] = []
     if uid == OWNER_ID:
-        bot.reply_to(message, "Привет, создатель! У тебя безлимит на генерации.\n\nПросто напиши название товара и детали.")
+        bot.reply_to(message, "Привет, создатель! У тебя безлимит на генерации.\n\nНапиши название товара и детали, я составлю описание. Можно потом попросить переписать, сократить или добавить характеристики.")
         return
     if uid not in user_free_left:
         user_free_left[uid] = FREE_LIMIT
-    bot.reply_to(message, WELCOME.format(free=user_free_left[uid]))
+    bot.reply_to(message, "Привет! Я делаю продающие описания товаров для Avito, Wildberries и Ozon, разбираюсь в брендах и моделях.\n\nНапиши мне название товара и детали (бренд, цвет, состояние, материал), получишь готовый текст. После этого можно попросить переписать, сократить, добавить характеристики или сделать под другую площадку, я учту контекст.\n\nУ тебя " + str(user_free_left[uid]) + " бесплатных описаний. Дальше 299 руб/месяц безлимит, команда /pro")
+
+@bot.message_handler(commands=['new'])
+def new_topic(message):
+    uid = message.from_user.id
+    user_history[uid] = []
+    bot.reply_to(message, "Начинаем новое описание. Напиши название товара и детали.")
+
+@bot.message_handler(commands=['help'])
+def help_command(message):
+    bot.reply_to(message, "Как пользоваться ботом:\n\n1. Напиши название товара и детали (бренд, цвет, состояние, материал)\n2. Получи готовое продающее описание\n3. Можешь сразу попросить: перепиши короче, добавь характеристики, сделай под Wildberries, я учту предыдущий текст\n4. Команда /new, начать описание нового товара (сбрасывает контекст правок)\n\nКоманды:\n/start - начать сначала\n/new - новый товар\n/pro - получить безлимит за 299 руб/мес\n/myid - узнать свой Telegram ID\n/help - это сообщение")
 
 @bot.message_handler(commands=['pro'])
 def pro(message):
-    bot.reply_to(message, f"Чтобы получить безлимит за 299 руб/мес — переведи на карту {CARD_NUMBER} и пришли скриншот сюда. Активирую вручную в течение часа.")
+    bot.reply_to(message, "Чтобы получить безлимит за 299 руб/мес, переведи на карту " + CARD_NUMBER + " и пришли скриншот сюда. После перевода также пришли команду /myid и сообщи мне результат, я активирую подписку вручную в течение часа.")
+
+@bot.message_handler(commands=['myid'])
+def myid(message):
+    bot.reply_to(message, "Твой Telegram ID: " + str(message.from_user.id) + "\n\nЕсли оплачивал PRO, пришли этот номер мне.")
+
+@bot.message_handler(commands=['activate'])
+def activate(message):
+    if message.from_user.id != OWNER_ID:
+        return
+    try:
+        target_id = int(message.text.split()[1])
+        pro_users.add(target_id)
+        bot.reply_to(message, "Готово, пользователь " + str(target_id) + " теперь PRO (безлимит).")
+        try:
+            bot.send_message(target_id, "Твоя подписка PRO активирована! Теперь у тебя безлимит на описания.")
+        except Exception:
+            pass
+    except (IndexError, ValueError):
+        bot.reply_to(message, "Используй так: /activate 123456789 (укажи ID пользователя)")
+
+@bot.message_handler(commands=['deactivate'])
+def deactivate(message):
+    if message.from_user.id != OWNER_ID:
+        return
+    try:
+        target_id = int(message.text.split()[1])
+        pro_users.discard(target_id)
+        bot.reply_to(message, "Подписка PRO отключена у пользователя " + str(target_id) + ".")
+    except (IndexError, ValueError):
+        bot.reply_to(message, "Используй так: /deactivate 123456789")
 
 @bot.message_handler(func=lambda m: True)
 def generate(message):
     uid = message.from_user.id
+    history = get_user_state(uid)
 
-    if uid != OWNER_ID:
+    is_new_topic = len(history) == 0
+
+    if not is_unlimited(uid) and is_new_topic:
         if uid not in user_free_left:
             user_free_left[uid] = FREE_LIMIT
-
         if user_free_left[uid] <= 0:
             bot.reply_to(message, "Бесплатные описания закончились. Напиши /pro чтобы получить безлимит за 299 руб/мес.")
             return
 
     bot.send_chat_action(message.chat.id, 'typing')
 
-    styles = [
-        "энергичный и динамичный, с короткими фразами",
-        "спокойный и дружелюбный, как совет от друга",
-        "уверенный и убедительный, с акцентом на выгоду",
-        "лёгкий и игривый, с лёгкой иронией",
-        "лаконичный и по делу, без лишних слов"
-    ]
-    chosen_style = random.choice(styles)
+    if is_new_topic:
+        styles = [
+            "энергичный и динамичный, с короткими фразами",
+            "спокойный и дружелюбный, как совет от друга",
+            "уверенный и убедительный, с акцентом на выгоду",
+            "лёгкий и игривый, с лёгкой иронией",
+            "лаконичный и по делу, без лишних слов"
+        ]
+        style_note = "\n\nСтиль текста: " + random.choice(styles)
+        user_text = message.text + style_note
+        history.append({"role": "system", "content": SYSTEM_PROMPT})
+    else:
+        user_text = message.text
 
-    prompt = f"""Ты профессиональный копирайтер маркетплейсов и эксперт в моде, кроссовках, брендах и стрит-стиле. Ты хорошо разбираешься в конкретных моделях обуви и одежды, их истории, материалах и особенностях. Напиши грамотное продающее описание товара для Avito/Wildberries/Ozon на основе этих данных от пользователя:
-{message.text}
+    history.append({"role": "user", "content": user_text})
 
-Стиль текста на этот раз: {chosen_style}
-
-Правила:
-- Если товар — известная модель (например конкретная модель кроссовок, бренд одежды) — используй свои реальные знания о ней: материалы, технологии, историю, особенности дизайна, для чего она создавалась
-- Если пользователь дал дополнительные детали (цвет, состояние, размер) — обязательно используй их
-- Пиши только на русском языке, грамотно и без ошибок, живым литературным языком, без канцелярита
-- Никогда не используй иероглифы, латиницу не к месту или символы других языков — только чистый русский текст
-- 5-7 предложений
-- Подчеркни выгоды для покупателя, а не просто перечисляй характеристики
-- В конце короткий, естественный призыв к действию
-- Без хештегов и эмодзи
-- Каждый раз формулируй по-новому, не используй шаблонные клише и затёртые фразы
-- Уточняющий вопрос задавай ТОЛЬКО если в сообщении нет вообще никакой узнаваемой информации о товаре (например просто слово обувь без названия модели или бренда). Если товар узнаваем — пиши полноценное уверенное описание без вопросов в конце
-- Учитывай разницу площадок: для Avito пиши чуть более простым, личным тоном, как от частного продавца. Для Wildberries и Ozon — более структурированным и уверенным тоном, как от официального продавца, с акцентом на характеристики и преимущества товара. Если площадка явно не указана пользователем, пиши универсально, подходящее для обеих"""
+    if len(history) > 10:
+        trimmed_history = [history[0]] + history[-9:]
+    else:
+        trimmed_history = history
 
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=450,
-            temperature=0.85
+            messages=trimmed_history,
+            max_tokens=700,
+            temperature=0.8
         )
-        text = response.choices[0].message.content
-        if uid == OWNER_ID:
-            bot.reply_to(message, text)
-        else:
+        text = clean_text(response.choices[0].message.content)
+        history.append({"role": "assistant", "content": text})
+
+        if not is_unlimited(uid) and is_new_topic:
             user_free_left[uid] -= 1
-            bot.reply_to(message, f"{text}\n\n— Осталось бесплатных: {user_free_left[uid]}")
+            footer = "\n\n— Осталось бесплатных новых описаний: " + str(user_free_left[uid])
+        else:
+            footer = ""
+
+        bot.reply_to(message, text + footer)
     except Exception:
         bot.reply_to(message, "Произошла ошибка, попробуй ещё раз через минуту.")
 
