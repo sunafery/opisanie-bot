@@ -75,7 +75,7 @@ def support_command(message):
     bot.reply_to(message, "Поддержка:\n\nЕсли у тебя вопрос, ошибка или предложение, просто напиши сообщение прямо в этот чат, мы постараемся ответить как можно быстрее.")
 
 @bot.message_handler(commands=['podpiska'])
-def subscription(message):
+def podpiska(message):
     bot.reply_to(message, "Чтобы оформить Подписку (безлимит) за 299 руб/мес, переведи на карту " + CARD_NUMBER + " и пришли скриншот сюда. После перевода также пришли команду /myid и сообщи мне результат, активирую Подписку вручную в течение часа.")
 
 @bot.message_handler(commands=['myid'])
