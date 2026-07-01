@@ -43,7 +43,6 @@ def save_user_data():
     except Exception:
         pass
 
-# Загружаем данные при запуске
 load_user_data()
 
 user_history = {}
@@ -527,6 +526,11 @@ def handle_photo(message):
         if not is_unlimited(uid):
             user_free_left[uid] -= 1
             save_user_data()
+            remaining = user_free_left[uid]
+            if remaining > 0:
+                bot.reply_to(message, f"🔸 Осталось бесплатных запросов: {remaining}")
+            else:
+                bot.reply_to(message, "🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
         bot.reply_to(message, text)
     except Exception:
         bot.reply_to(message, "Не получилось распознать фото, попробуй ещё раз или опиши товар текстом.")
@@ -537,15 +541,16 @@ def generate(message):
     all_users.add(uid)
     history = get_user_state(uid)
     settings_ = get_settings(uid)
-    is_new_topic = len(history) == 0
-    if not is_unlimited(uid) and is_new_topic:
+
+    if not is_unlimited(uid):
         if uid not in user_free_left:
             user_free_left[uid] = FREE_LIMIT
         if user_free_left[uid] <= 0:
             bot.reply_to(message, "🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
             return
+
     bot.send_chat_action(message.chat.id, 'typing')
-    if is_new_topic:
+    if len(history) == 0:
         history.append({"role": "system", "content": build_system_prompt(settings_)})
     history.append({"role": "user", "content": message.text})
     trimmed = [history[0]] + history[-11:] if len(history) > 12 else history
@@ -555,10 +560,16 @@ def generate(message):
         text = clean_text(response.choices[0].message.content)
         history.append({"role": "assistant", "content": text})
         add_to_text_history(uid, text)
-        if not is_unlimited(uid) and is_new_topic:
+        if not is_unlimited(uid):
             user_free_left[uid] -= 1
             save_user_data()
-        bot.reply_to(message, text)
+            remaining = user_free_left[uid]
+            if remaining > 0:
+                bot.reply_to(message, f"{text}\n\n🔸 Осталось бесплатных запросов: {remaining}")
+            else:
+                bot.reply_to(message, f"{text}\n\n🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
+        else:
+            bot.reply_to(message, text)
     except Exception:
         bot.reply_to(message, "Произошла ошибка, попробуй ещё раз через минуту.")
 
