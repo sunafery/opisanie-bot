@@ -472,12 +472,15 @@ def deactivate(message):
 def handle_photo(message):
     uid = message.from_user.id
     all_users.add(uid)
+
+    # Проверка лимита бесплатных запросов
     if not is_unlimited(uid):
         if uid not in user_free_left:
             user_free_left[uid] = FREE_LIMIT
         if user_free_left[uid] <= 0:
-            bot.reply_to(message, "Бесплатные запросы закончились. Напиши /subscription.")
+            bot.reply_to(message, "🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
             return
+
     bot.send_chat_action(message.chat.id, 'typing')
     try:
         file_info = bot.get_file(message.photo[-1].file_id)
@@ -497,8 +500,11 @@ def handle_photo(message):
         )
         text = clean_text(response.choices[0].message.content)
         add_to_text_history(uid, text)
+        
+        # Списываем запрос
         if not is_unlimited(uid):
             user_free_left[uid] -= 1
+            
         bot.reply_to(message, text)
     except Exception:
         bot.reply_to(message, "Не получилось распознать фото, попробуй ещё раз или опиши товар текстом.")
@@ -507,28 +513,37 @@ def handle_photo(message):
 def generate(message):
     uid = message.from_user.id
     all_users.add(uid)
-    history = get_user_state(uid)
-    settings_ = get_settings(uid)
-    is_new_topic = len(history) == 0
-    if not is_unlimited(uid) and is_new_topic:
+
+    # Проверка лимита бесплатных запросов (каждое сообщение тратит 1 запрос)
+    if not is_unlimited(uid):
         if uid not in user_free_left:
             user_free_left[uid] = FREE_LIMIT
         if user_free_left[uid] <= 0:
-            bot.reply_to(message, "Бесплатные запросы закончились. Напиши /subscription.")
+            bot.reply_to(message, "🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
             return
+
     bot.send_chat_action(message.chat.id, 'typing')
-    if is_new_topic:
+
+    history = get_user_state(uid)
+    settings_ = get_settings(uid)
+
+    if len(history) == 0:
         history.append({"role": "system", "content": build_system_prompt(settings_)})
+
     history.append({"role": "user", "content": message.text})
     trimmed = [history[0]] + history[-11:] if len(history) > 12 else history
     model_name = MODELS.get(settings_.get("model", "smart"), MODELS["smart"])
+
     try:
         response = client.chat.completions.create(model=model_name, messages=trimmed, max_tokens=700, temperature=0.8)
         text = clean_text(response.choices[0].message.content)
         history.append({"role": "assistant", "content": text})
         add_to_text_history(uid, text)
-        if not is_unlimited(uid) and is_new_topic:
+        
+        # Списываем запрос
+        if not is_unlimited(uid):
             user_free_left[uid] -= 1
+            
         bot.reply_to(message, text)
     except Exception:
         bot.reply_to(message, "Произошла ошибка, попробуй ещё раз через минуту.")
