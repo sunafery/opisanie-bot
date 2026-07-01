@@ -277,6 +277,12 @@ def start(message):
     bot.reply_to(message, WELCOME_TEXT)
     bot.send_message(message.chat.id, MENU_MAIN_TEXT, reply_markup=build_main_menu_markup())
 
+    # Принудительно показываем меню с командами для пользователя
+    try:
+        bot.set_my_commands(DEFAULT_COMMANDS, scope=BotCommandScopeChat(uid))
+    except Exception:
+        pass
+
 @bot.message_handler(commands=['menu'])
 def menu_command(message):
     bot.reply_to(message, MENU_MAIN_TEXT, reply_markup=build_main_menu_markup())
