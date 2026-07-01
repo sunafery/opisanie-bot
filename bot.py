@@ -170,42 +170,58 @@ def build_settings_main_markup():
     return markup
 
 def build_model_markup(s):
+    options = [
+        ("smart", "Умная (точнее)"),
+        ("fast", "⚡ Быстрая (быстрее)")
+    ]
+    options.sort(key=lambda x: 0 if x[0] == s["model"] else 1)
     markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        InlineKeyboardButton(("✅ " if s["model"] == "smart" else "") + "Умная (точнее)", callback_data="set_model_smart"),
-        InlineKeyboardButton(("✅ " if s["model"] == "fast" else "") + "⚡ Быстрая (быстрее)", callback_data="set_model_fast"),
-        InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings")
-    )
+    for key, label in options:
+        prefix = "✅ " if s["model"] == key else ""
+        markup.add(InlineKeyboardButton(prefix + label, callback_data="set_model_" + key))
+    markup.add(InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings"))
     return markup
 
 def build_platform_markup(s):
+    options = [
+        ("auto", "🤖 Автоматически"),
+        ("ozonwb", "🟣 Wildberries / Ozon"),
+        ("avito", "🟡 Avito")
+    ]
+    options.sort(key=lambda x: 0 if x[0] == s["platform"] else 1)
     markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        InlineKeyboardButton(("✅ " if s["platform"] == "auto" else "") + "🤖 Автоматически", callback_data="set_platform_auto"),
-        InlineKeyboardButton(("✅ " if s["platform"] == "ozonwb" else "") + "🟣 Wildberries / Ozon", callback_data="set_platform_ozonwb"),
-        InlineKeyboardButton(("✅ " if s["platform"] == "avito" else "") + "🟡 Avito", callback_data="set_platform_avito"),
-        InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings")
-    )
+    for key, label in options:
+        prefix = "✅ " if s["platform"] == key else ""
+        markup.add(InlineKeyboardButton(prefix + label, callback_data="set_platform_" + key))
+    markup.add(InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings"))
     return markup
 
 def build_tone_markup(s):
+    options = [
+        ("auto", "🤖 Автоматически"),
+        ("casual", "😎 Неформальный"),
+        ("formal", "🎩 Официальный")
+    ]
+    options.sort(key=lambda x: 0 if x[0] == s["tone"] else 1)
     markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        InlineKeyboardButton(("✅ " if s["tone"] == "auto" else "") + "🤖 Автоматически", callback_data="set_tone_auto"),
-        InlineKeyboardButton(("✅ " if s["tone"] == "casual" else "") + "😎 Неформальный", callback_data="set_tone_casual"),
-        InlineKeyboardButton(("✅ " if s["tone"] == "formal" else "") + "🎩 Официальный", callback_data="set_tone_formal"),
-        InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings")
-    )
+    for key, label in options:
+        prefix = "✅ " if s["tone"] == key else ""
+        markup.add(InlineKeyboardButton(prefix + label, callback_data="set_tone_" + key))
+    markup.add(InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings"))
     return markup
 
 def build_length_markup(s):
+    options = [
+        ("auto", "🤖 Автоматически"),
+        ("short", "📌 Краткое описание"),
+        ("long", "📝 Подробное описание")
+    ]
+    options.sort(key=lambda x: 0 if x[0] == s["length"] else 1)
     markup = InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        InlineKeyboardButton(("✅ " if s["length"] == "auto" else "") + "🤖 Автоматически", callback_data="set_length_auto"),
-        InlineKeyboardButton(("✅ " if s["length"] == "short" else "") + "📌 Краткое описание", callback_data="set_length_short"),
-        InlineKeyboardButton(("✅ " if s["length"] == "long" else "") + "📝 Подробное описание", callback_data="set_length_long"),
-        InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings")
-    )
+    for key, label in options:
+        prefix = "✅ " if s["length"] == key else ""
+        markup.add(InlineKeyboardButton(prefix + label, callback_data="set_length_" + key))
+    markup.add(InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings"))
     return markup
 
 DEFAULT_COMMANDS = [
