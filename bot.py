@@ -63,7 +63,7 @@ VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 WELCOME_TEXT = ("👋 Добро пожаловать!\n\n"
     "Marketplace Description Bot — ваш надёжный помощник в создании продающих описаний для маркетплейсов.\n\n"
     "Мы создаём тексты, которые не только привлекают внимание покупателей, но и помогают карточкам товара выглядеть профессионально.\n\n"
-    "🎁 У тебя есть 3 бесплатных запроса. После их использования потребуется подписка.")
+    "🎁 У тебя есть 3 бесплатных запросов. После их использования потребуется подписка.")
 
 MENU_MAIN_TEXT = "📋 Главное меню\n\nВыбери раздел или просто напиши название товара:"
 
@@ -344,8 +344,6 @@ def safe_edit(call, text, markup):
     except Exception:
         bot.send_message(call.message.chat.id, text, reply_markup=markup)
 
-# ... (остальные callback и команды без изменений)
-
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     uid = message.from_user.id
@@ -401,6 +399,10 @@ def generate(message):
     uid = message.from_user.id
     all_users.add(uid)
 
+    # Исключаем команды
+    if message.text and message.text.startswith('/'):
+        return
+
     if uid in last_request_time and time.time() - last_request_time[uid] < 3:
         bot.reply_to(message, "⏳ Подожди 3 секунды перед следующим запросом.")
         return
@@ -427,20 +429,20 @@ def generate(message):
 
     try:
         response = client.chat.completions.create(model=model_name, messages=trimmed, max_tokens=700, temperature=0.8)
-        text = clean_text(response.choices[0].message.content)
-        history.append({"role": "assistant", "content": text})
-        add_to_text_history(uid, text)
+        text_response = clean_text(response.choices[0].message.content)
+        history.append({"role": "assistant", "content": text_response})
+        add_to_text_history(uid, text_response)
         
         if not is_unlimited(uid):
             user_free_left[uid] -= 1
             save_user_data()
             remaining = user_free_left[uid]
             if remaining > 0:
-                bot.reply_to(message, f"{text}\n\n🔸 Осталось бесплатных запросов: {remaining}")
+                bot.reply_to(message, f"{text_response}\n\n🔸 Осталось бесплатных запросов: {remaining}")
             else:
-                bot.reply_to(message, f"{text}\n\n🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
+                bot.reply_to(message, f"{text_response}\n\n🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
         else:
-            bot.reply_to(message, text)
+            bot.reply_to(message, text_response)
     except Exception:
         bot.reply_to(message, "Произошла ошибка, попробуй ещё раз через минуту.")
 
