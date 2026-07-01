@@ -37,7 +37,7 @@ VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 WELCOME_TEXT = ("👋 Добро пожаловать!\n\n"
     "Marketplace Description Bot — ваш надёжный помощник в создании продающих описаний для маркетплейсов.\n\n"
     "Мы создаём тексты, которые не только привлекают внимание покупателей, но и помогают карточкам товара выглядеть профессионально, повышая доверие и увеличивая вероятность покупки.\n\n"
-    "Если считаешь, что можно что-то улучшить в описании — просто скажи об этом прямо в чате.")
+    "🎁 У тебя есть 3 бесплатных запроса. После их использования потребуется подписка.")
 
 MENU_MAIN_TEXT = "📋 Главное меню\n\nВыбери раздел или просто напиши название товара:"
 
@@ -501,10 +501,15 @@ def handle_photo(message):
         text = clean_text(response.choices[0].message.content)
         add_to_text_history(uid, text)
         
-        # Списываем запрос
+        # Списываем запрос и отправляем информацию отдельным сообщением
         if not is_unlimited(uid):
             user_free_left[uid] -= 1
-            
+            remaining = user_free_left[uid]
+            if remaining > 0:
+                bot.reply_to(message, f"🔸 Осталось бесплатных запросов: {remaining}")
+            else:
+                bot.reply_to(message, "🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
+        
         bot.reply_to(message, text)
     except Exception:
         bot.reply_to(message, "Не получилось распознать фото, попробуй ещё раз или опиши товар текстом.")
@@ -540,11 +545,16 @@ def generate(message):
         history.append({"role": "assistant", "content": text})
         add_to_text_history(uid, text)
         
-        # Списываем запрос
+        # Списываем запрос и показываем остаток
         if not is_unlimited(uid):
             user_free_left[uid] -= 1
-            
-        bot.reply_to(message, text)
+            remaining = user_free_left[uid]
+            if remaining > 0:
+                bot.reply_to(message, f"{text}\n\n🔸 Осталось бесплатных запросов: {remaining}")
+            else:
+                bot.reply_to(message, f"{text}\n\n🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
+        else:
+            bot.reply_to(message, text)
     except Exception:
         bot.reply_to(message, "Произошла ошибка, попробуй ещё раз через минуту.")
 
