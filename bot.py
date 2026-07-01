@@ -3,6 +3,7 @@ from telebot.types import LabeledPrice, InlineKeyboardMarkup, InlineKeyboardButt
 import re
 import os
 import base64
+import json
 from datetime import datetime, timedelta
 from groq import Groq
 
@@ -20,7 +21,31 @@ FREE_LIMIT = 3
 STARS_PRICE = 150
 REFERRAL_BONUS = 2
 
-user_free_left = {}
+# === Сохранение лимита ===
+DATA_FILE = "user_data.json"
+
+def load_user_data():
+    global user_free_left
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                user_free_left = {int(k): v for k, v in data.get("free_left", {}).items()}
+        except Exception:
+            user_free_left = {}
+    else:
+        user_free_left = {}
+
+def save_user_data():
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump({"free_left": user_free_left}, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+# Загружаем данные при запуске
+load_user_data()
+
 user_history = {}
 pro_users = {}
 user_settings = {}
@@ -260,6 +285,7 @@ def start(message):
             if referrer_id != uid:
                 referred_by[uid] = referrer_id
                 user_free_left[referrer_id] = user_free_left.get(referrer_id, FREE_LIMIT) + REFERRAL_BONUS
+                save_user_data()
                 try:
                     bot.send_message(referrer_id, "По твоей ссылке пришёл новый пользователь! Тебе начислено +" + str(REFERRAL_BONUS) + " запроса.")
                 except Exception:
@@ -273,6 +299,7 @@ def start(message):
 
     if uid not in user_free_left:
         user_free_left[uid] = FREE_LIMIT
+        save_user_data()
 
     bot.reply_to(message, WELCOME_TEXT)
     bot.send_message(message.chat.id, MENU_MAIN_TEXT, reply_markup=build_main_menu_markup())
@@ -476,7 +503,7 @@ def handle_photo(message):
         if uid not in user_free_left:
             user_free_left[uid] = FREE_LIMIT
         if user_free_left[uid] <= 0:
-            bot.reply_to(message, "Бесплатные запросы закончились. Напиши /subscription.")
+            bot.reply_to(message, "🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
             return
     bot.send_chat_action(message.chat.id, 'typing')
     try:
@@ -499,6 +526,7 @@ def handle_photo(message):
         add_to_text_history(uid, text)
         if not is_unlimited(uid):
             user_free_left[uid] -= 1
+            save_user_data()
         bot.reply_to(message, text)
     except Exception:
         bot.reply_to(message, "Не получилось распознать фото, попробуй ещё раз или опиши товар текстом.")
@@ -514,7 +542,7 @@ def generate(message):
         if uid not in user_free_left:
             user_free_left[uid] = FREE_LIMIT
         if user_free_left[uid] <= 0:
-            bot.reply_to(message, "Бесплатные запросы закончились. Напиши /subscription.")
+            bot.reply_to(message, "🛑 Бесплатные запросы закончились.\n\nНапиши /subscription для оформления подписки.")
             return
     bot.send_chat_action(message.chat.id, 'typing')
     if is_new_topic:
@@ -529,6 +557,7 @@ def generate(message):
         add_to_text_history(uid, text)
         if not is_unlimited(uid) and is_new_topic:
             user_free_left[uid] -= 1
+            save_user_data()
         bot.reply_to(message, text)
     except Exception:
         bot.reply_to(message, "Произошла ошибка, попробуй ещё раз через минуту.")
