@@ -1,6 +1,5 @@
 import telebot
 from telebot.types import LabeledPrice, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand, BotCommandScopeChat, BotCommandScopeDefault
-import random
 import re
 import os
 import base64
@@ -26,7 +25,6 @@ user_history = {}
 pro_users = {}
 user_settings = {}
 user_text_history = {}
-user_language = {}
 referred_by = {}
 all_users = set()
 
@@ -36,52 +34,42 @@ MODELS = {
 }
 VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
-LANGUAGES = {
-    "ru": "Русский",
-    "en": "English",
-    "es": "Espanol",
-    "de": "Deutsch",
-    "fr": "Francais",
-    "it": "Italiano",
-    "pt": "Portugues",
-    "tr": "Turkce",
-    "zh": "Zhongwen",
-    "ar": "Arabiya"
-}
+WELCOME_TEXT = ("👋 Добро пожаловать!\n\n"
+    "Marketplace Description Bot — ваш надёжный помощник в создании продающих описаний для маркетплейсов.\n\n"
+    "Мы создаём тексты, которые не только привлекают внимание покупателей, но и помогают карточкам товара выглядеть профессионально, повышая доверие и увеличивая вероятность покупки.\n\n"
+    "Если считаешь, что можно что-то улучшить в описании — просто скажи об этом прямо в чате.")
 
-LANG_FLAGS = {
-    "ru": "Русский",
-    "en": "English",
-    "es": "Espanol",
-    "de": "Deutsch",
-    "fr": "Francais",
-    "it": "Italiano",
-    "pt": "Portugues",
-    "tr": "Turkce",
-    "zh": "Zhongwen",
-    "ar": "Arabiya"
-}
+MENU_MAIN_TEXT = "📋 Главное меню\n\nВыбери раздел или просто напиши название товара:"
 
-WELCOME_TEXTS = {
-    "ru": "Привет! Я ИИ-помощник, который пишет продающие описания товаров за секунды — для Avito, Wildberries и Ozon.\n\nЗнаю бренды, модели, материалы и технологии, поэтому описания получаются живые, а не шаблонные. Могу переписать, сократить, добавить характеристики или перевести текст прямо в диалоге. Понимаю и фото товара — просто пришли картинку.\n\nКак начать: напиши название товара и пару деталей. Например: Кроссовки Nike Air Max, белые, новые, размер 42",
-    "en": "Hi! I am an AI assistant that writes selling product descriptions in seconds.\n\nI know brands, models, materials and technologies, so descriptions feel alive, not templated. I can rewrite, shorten, add specs or translate right in the chat. I also understand product photos, just send a picture.\n\nHow to start: send the product name and a few details. Example: Nike Air Max sneakers, white, new, size 42",
-    "es": "Hola! Soy un asistente de IA que escribe descripciones de venta en segundos.\n\nConozco marcas, modelos, materiales y tecnologias. Puedo reescribir, acortar, anadir caracteristicas o traducir en el chat. Tambien entiendo fotos de productos.\n\nComo empezar: escribe el nombre del producto y algunos detalles.",
-    "de": "Hallo! Ich bin ein KI-Assistent der in Sekunden verkaufsstarke Produktbeschreibungen schreibt.\n\nIch kenne Marken, Modelle, Materialien und Technologien. Ich kann umschreiben, kurzen, Merkmale hinzufugen oder ubersetzen. Ich verstehe auch Produktfotos.\n\nSo geht es: Schreib den Produktnamen und ein paar Details.",
-    "fr": "Salut! Je suis un assistant IA qui redige des descriptions de produits convaincantes en quelques secondes.\n\nJe connais les marques, modeles, materiaux et technologies. Je peux reecrire, raccourcir, ajouter des caracteristiques ou traduire. Je comprends aussi les photos.\n\nPour commencer: ecris le nom du produit et quelques details.",
-    "it": "Ciao! Sono un assistente IA che scrive descrizioni di vendita in pochi secondi.\n\nConosco marchi, modelli, materiali e tecnologie. Posso riscrivere, accorciare, aggiungere caratteristiche o tradurre. Capisco anche le foto dei prodotti.\n\nPer iniziare: scrivi il nome del prodotto e alcuni dettagli.",
-    "pt": "Ola! Sou um assistente de IA que escreve descricoes de venda em segundos.\n\nConheco marcas, modelos, materiais e tecnologias. Posso reescrever, encurtar, adicionar caracteristicas ou traduzir. Tambem entendo fotos de produtos.\n\nPara comecar: escreva o nome do produto e alguns detalhes.",
-    "tr": "Merhaba! Saniyeler icinde satis odakli urun aciklamalari yazan bir yapay zeka asistaniyim.\n\nMarkalari, modelleri, malzemeleri ve teknolojileri biliyorum. Yeniden yazabilir, kisaltabilir, ozellik ekleyebilir veya cevirebilirim. Urun fotograflarini da anliyorum.\n\nBaslamak icin: urun adini ve birkac detayi yaz.",
-    "zh": "Hello! I am an AI assistant that writes product descriptions in seconds. I know brands, models and materials. I can rewrite, shorten, add specs or translate. I also understand product photos. To start: send the product name and details.",
-    "ar": "Hello! I am an AI assistant that writes product descriptions in seconds. I know brands, models and materials. I can rewrite, shorten, add specs or translate. I also understand product photos. To start: send the product name and details."
-}
+MENU_ABOUT_TEXT = ("ℹ️ О боте\n\n"
+    "Marketplace Description Bot создан, чтобы продавцам не приходилось тратить часы на написание описаний — одна фраза с названием товара, и через 10 секунд готов живой убедительный текст.\n\n"
+    "Что умею:\n"
+    "🛍️ Описания для Avito, Wildberries и Ozon\n"
+    "📷 Распознавание товара по фото\n"
+    "✏️ Редактирование прямо в диалоге\n"
+    "🎯 Разбор брендов, моделей, материалов и технологий\n\n"
+    "Просто напиши название товара — начнём.")
+
+MENU_SUPPORT_TEXT = "🛠️ Поддержка\n\nЧто-то пошло не так или есть идея как улучшить бота?\nНажми кнопку ниже — ответим быстро."
+
+def get_sub_text():
+    return ("💳 Подписка\n\n"
+        "Снимает лимит на количество запросов и даёт постоянный доступ ко всем функциям.\n\n"
+        "Способы оплаты:\n\n"
+        "⭐ Telegram Stars — мгновенно, активируется автоматически. Нажми кнопку ниже.\n\n"
+        "💳 Перевод на карту (160 ₽ + отзыв) — переведи 160 ₽ на карту " + CARD_NUMBER + ", оставь короткий отзыв о боте и пришли скриншот перевода вместе с командой /myid. Активирую вручную в течение часа.")
+
+SETTINGS_MAIN_TEXT = "⚙️ Настройки\n\nВыбери, что хочешь изменить:"
+
+MODEL_LABELS = {"smart": "Умная (точнее)", "fast": "Быстрая (быстрее)"}
+PLATFORM_LABELS = {"auto": "Автоматически", "ozonwb": "Wildberries / Ozon", "avito": "Avito"}
+TONE_LABELS = {"auto": "Автоматически", "casual": "Неформальный", "formal": "Официальный"}
+LENGTH_LABELS = {"auto": "Автоматически", "short": "Краткое описание", "long": "Подробное описание"}
 
 def get_settings(uid):
     if uid not in user_settings:
-        user_settings[uid] = {"model": "smart", "platform": "auto", "length": "auto", "tone": "auto"}
+        user_settings[uid] = {"model": "smart", "platform": "auto", "tone": "auto", "length": "auto"}
     return user_settings[uid]
-
-def get_language(uid):
-    return user_language.get(uid, "ru")
 
 def clean_text(text):
     return re.sub(r'[\u3040-\u30ff\uac00-\ud7af]', '', text)
@@ -99,98 +87,135 @@ def add_to_text_history(uid, text):
     if len(user_text_history[uid]) > 5:
         user_text_history[uid].pop(0)
 
-def build_system_prompt(settings_, lang_code):
-    lang_name = LANGUAGES.get(lang_code, "Russian")
+def build_system_prompt(settings_):
     platform_pref = settings_.get("platform", "auto")
     tone_pref = settings_.get("tone", "auto")
     length_pref = settings_.get("length", "auto")
-
     platform_line = ""
     if platform_pref == "avito":
-        platform_line = "Default format: Avito style, shorter, personal, like a private seller, 5-7 sentences."
+        platform_line = "По умолчанию формат Avito: короче, проще, как от частного продавца, 5-7 предложений."
     elif platform_pref == "ozonwb":
-        platform_line = "Default format: Wildberries/Ozon card, detailed 8-12 sentences, with a Characteristics block."
-
+        platform_line = "По умолчанию формат карточки Wildberries/Ozon: развёрнуто, 8-12 предложений, с блоком Характеристики."
     tone_line = ""
     if tone_pref == "formal":
-        tone_line = "Use a formal, professional tone in all responses."
+        tone_line = "Используй официальный, деловой тон."
     elif tone_pref == "casual":
-        tone_line = "Use a casual, friendly, conversational tone in all responses."
-
+        tone_line = "Используй неформальный, дружелюбный тон."
     length_line = ""
     if length_pref == "short":
-        length_line = "Keep responses concise and brief unless the user asks for more detail."
+        length_line = "Отвечай кратко и по делу."
     elif length_pref == "long":
-        length_line = "Provide detailed and thorough responses by default."
-
-    return ("You are a friendly and articulate AI assistant in Telegram. You can hold a conversation on any topic.\n\n"
-            "You also have a strong specialty: professional marketplace copywriter and expert in fashion, sneakers, brands, electronics and products.\n\n"
-            "Product description rules:\n"
-            "- If the product is a known model, use your real knowledge: materials, technology, history, features\n"
-            "- If the user caption or message explicitly states a brand or model name, always trust that stated information over any visual guess from an image\n"
-            "- Do not invent facts you are not sure about\n"
-            "- Wildberries/Ozon card: 8-12 sentences, intro, features, Characteristics block, call to action\n"
-            "- Avito: 5-7 sentences, simpler, like a private seller\n"
-            "- Characteristics request: compact list, brand, model, materials, tech, use case\n"
-            "- If asked to translate, do it accurately and fluently\n"
-            + platform_line + "\n"
-            + tone_line + "\n"
-            + length_line + "\n\n"
-            "General rules:\n"
-            "- Always respond in this language: " + lang_name + ", unless user explicitly asks to switch\n"
-            "- Never use random foreign script characters outside the active language\n"
-            "- Use conversation context when user asks to rewrite or edit previous text\n"
-            "- Do not add template phrases offering to rewrite unless asked\n"
-            "- Behave naturally like a smart real conversational partner")
+        length_line = "Давай развёрнутые, подробные ответы."
+    return ("Ты дружелюбный и грамотный ИИ-помощник в Telegram. Можешь поддержать разговор на любую тему.\n\n"
+            "У тебя есть сильная специализация: профессиональный копирайтер маркетплейсов и эксперт в моде, кроссовках, брендах, технике.\n\n"
+            "Правила:\n"
+            "- Если товар известная модель, используй реальные знания: материалы, технологии, историю, особенности\n"
+            "- Если в подписи или сообщении явно указан бренд или модель, доверяй этому полностью, не переопределяй визуальной догадкой\n"
+            "- Не выдумывай факты, в которых не уверен\n"
+            "- Карточка WB/Ozon: 8-12 предложений, вступление, особенности, блок Характеристики, призыв к действию\n"
+            "- Avito: 5-7 предложений, проще, как от частного продавца\n"
+            "- По запросу характеристик — компактный список: бренд, модель, материалы, технологии, применение\n"
+            "- Если просят перевести текст, переводи точно\n"
+            + platform_line + " " + tone_line + " " + length_line + "\n\n"
+            "- Пиши только на русском языке, грамотно, живым языком, без канцелярита\n"
+            "- Никогда не используй иероглифы и символы других алфавитов\n"
+            "- Используй контекст диалога, если просят переписать или изменить предыдущий текст\n"
+            "- Не добавляй шаблонные фразы с предложением переписать текст, если не просили\n"
+            "- Веди себя естественно, как живой умный собеседник")
 
 def get_user_state(uid):
     if uid not in user_history:
         user_history[uid] = []
     return user_history[uid]
 
-def build_main_menu():
+def build_main_menu_markup():
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
-        InlineKeyboardButton("О боте", callback_data="menu_about"),
-        InlineKeyboardButton("Подписка", callback_data="menu_subscription"),
-        InlineKeyboardButton("Настройки", callback_data="menu_settings"),
-        InlineKeyboardButton("Поддержка", callback_data="menu_support")
+        InlineKeyboardButton("ℹ️ О боте", callback_data="menu_about"),
+        InlineKeyboardButton("💳 Подписка", callback_data="menu_subscription"),
+        InlineKeyboardButton("⚙️ Настройки", callback_data="menu_settings"),
+        InlineKeyboardButton("🛠️ Поддержка", callback_data="menu_support")
     )
     return markup
 
-def build_language_markup():
-    markup = InlineKeyboardMarkup(row_width=2)
-    buttons = [InlineKeyboardButton(name, callback_data="lang_" + code) for code, name in LANGUAGES.items()]
-    markup.add(*buttons)
+def build_about_markup():
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("⬅️ Назад", callback_data="menu_main"))
     return markup
 
-def build_settings_markup(s):
+def build_support_markup():
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("✉️ Написать в поддержку", url="https://t.me/" + OWNER_USERNAME))
+    markup.add(InlineKeyboardButton("⬅️ Назад", callback_data="menu_main"))
+    return markup
+
+def build_sub_markup():
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
-        InlineKeyboardButton(("OK " if s["model"] == "smart" else "") + "Умная модель (точнее)", callback_data="model_smart"),
-        InlineKeyboardButton(("OK " if s["model"] == "fast" else "") + "Быстрая модель (мгновенно)", callback_data="model_fast"),
-        InlineKeyboardButton(("OK " if s["platform"] == "auto" else "") + "Площадка: Автоматически", callback_data="platform_auto"),
-        InlineKeyboardButton(("OK " if s["platform"] == "avito" else "") + "Площадка: Avito", callback_data="platform_avito"),
-        InlineKeyboardButton(("OK " if s["platform"] == "ozonwb" else "") + "Площадка: WB / Ozon", callback_data="platform_ozonwb"),
-        InlineKeyboardButton(("OK " if s["tone"] == "auto" else "") + "Тон: Автоматически", callback_data="tone_auto"),
-        InlineKeyboardButton(("OK " if s["tone"] == "casual" else "") + "Тон: Неформальный", callback_data="tone_casual"),
-        InlineKeyboardButton(("OK " if s["tone"] == "formal" else "") + "Тон: Официальный", callback_data="tone_formal"),
-        InlineKeyboardButton(("OK " if s["length"] == "auto" else "") + "Длина: Автоматически", callback_data="length_auto"),
-        InlineKeyboardButton(("OK " if s["length"] == "short" else "") + "Длина: Короткий текст", callback_data="length_short"),
-        InlineKeyboardButton(("OK " if s["length"] == "long" else "") + "Длина: Подробный текст", callback_data="length_long")
+        InlineKeyboardButton("⭐ Оплатить Telegram Stars", callback_data="pay_stars"),
+        InlineKeyboardButton("⬅️ Назад", callback_data="menu_main")
+    )
+    return markup
+
+def build_settings_main_markup():
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton("🤖 Модель ИИ  >", callback_data="set_open_model"),
+        InlineKeyboardButton("🛍️ Маркетплейс  >", callback_data="set_open_platform"),
+        InlineKeyboardButton("✍️ Стиль текста  >", callback_data="set_open_tone"),
+        InlineKeyboardButton("📄 Длина описания  >", callback_data="set_open_length"),
+        InlineKeyboardButton("🔄 Сбросить настройки", callback_data="set_reset"),
+        InlineKeyboardButton("⬅️ Назад", callback_data="menu_main")
+    )
+    return markup
+
+def build_model_markup(s):
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton(("✅ " if s["model"] == "smart" else "") + "Умная (точнее)", callback_data="set_model_smart"),
+        InlineKeyboardButton(("✅ " if s["model"] == "fast" else "") + "⚡ Быстрая (быстрее)", callback_data="set_model_fast"),
+        InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings")
+    )
+    return markup
+
+def build_platform_markup(s):
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton(("✅ " if s["platform"] == "auto" else "") + "🤖 Автоматически", callback_data="set_platform_auto"),
+        InlineKeyboardButton(("✅ " if s["platform"] == "ozonwb" else "") + "🟣 Wildberries / Ozon", callback_data="set_platform_ozonwb"),
+        InlineKeyboardButton(("✅ " if s["platform"] == "avito" else "") + "🟡 Avito", callback_data="set_platform_avito"),
+        InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings")
+    )
+    return markup
+
+def build_tone_markup(s):
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton(("✅ " if s["tone"] == "auto" else "") + "🤖 Автоматически", callback_data="set_tone_auto"),
+        InlineKeyboardButton(("✅ " if s["tone"] == "casual" else "") + "😎 Неформальный", callback_data="set_tone_casual"),
+        InlineKeyboardButton(("✅ " if s["tone"] == "formal" else "") + "🎩 Официальный", callback_data="set_tone_formal"),
+        InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings")
+    )
+    return markup
+
+def build_length_markup(s):
+    markup = InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        InlineKeyboardButton(("✅ " if s["length"] == "auto" else "") + "🤖 Автоматически", callback_data="set_length_auto"),
+        InlineKeyboardButton(("✅ " if s["length"] == "short" else "") + "📌 Краткое описание", callback_data="set_length_short"),
+        InlineKeyboardButton(("✅ " if s["length"] == "long" else "") + "📝 Подробное описание", callback_data="set_length_long"),
+        InlineKeyboardButton("⬅️ Назад", callback_data="menu_settings")
     )
     return markup
 
 DEFAULT_COMMANDS = [
     BotCommand("start", "Начать сначала"),
-    BotCommand("new", "Новый разговор"),
     BotCommand("menu", "Главное меню"),
+    BotCommand("new", "Новый разговор"),
     BotCommand("settings", "Настройки"),
-    BotCommand("language", "Сменить язык"),
     BotCommand("history", "Последние описания"),
     BotCommand("referral", "Пригласить друга"),
     BotCommand("subscription", "Подписка"),
-    BotCommand("about", "О нас"),
     BotCommand("support", "Поддержка"),
     BotCommand("myid", "Мой Telegram ID")
 ]
@@ -212,7 +237,6 @@ def start(message):
     uid = message.from_user.id
     user_history[uid] = []
     all_users.add(uid)
-
     parts = message.text.split()
     if len(parts) > 1 and parts[1].startswith("ref_") and uid not in referred_by:
         try:
@@ -221,34 +245,25 @@ def start(message):
                 referred_by[uid] = referrer_id
                 user_free_left[referrer_id] = user_free_left.get(referrer_id, FREE_LIMIT) + REFERRAL_BONUS
                 try:
-                    bot.send_message(referrer_id, "По твоей ссылке пришёл новый пользователь! Тебе начислено +" + str(REFERRAL_BONUS) + " бесплатных запроса.")
+                    bot.send_message(referrer_id, "По твоей ссылке пришёл новый пользователь! Тебе начислено +" + str(REFERRAL_BONUS) + " запроса.")
                 except Exception:
                     pass
         except ValueError:
             pass
 
     if uid == OWNER_ID:
-        bot.reply_to(message, "Привет, создатель! Безлимит активен.\n\nДоступны /activate, /deactivate и /stats.")
+        bot.reply_to(message, "Привет, создатель! Безлимит активен. Доступны /activate, /deactivate и /stats.")
         return
 
     if uid not in user_free_left:
         user_free_left[uid] = FREE_LIMIT
 
-    bot.reply_to(message, "Выбери язык / Choose your language:", reply_markup=build_language_markup())
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("lang_"))
-def language_callback(call):
-    uid = call.from_user.id
-    lang_code = call.data.replace("lang_", "")
-    user_language[uid] = lang_code
-    bot.answer_callback_query(call.id, "OK")
-    welcome = WELCOME_TEXTS.get(lang_code, WELCOME_TEXTS["ru"])
-    bot.send_message(call.message.chat.id, welcome)
-    bot.send_message(call.message.chat.id, "Выбери раздел или просто напиши вопрос:", reply_markup=build_main_menu())
+    bot.reply_to(message, WELCOME_TEXT)
+    bot.send_message(message.chat.id, MENU_MAIN_TEXT, reply_markup=build_main_menu_markup())
 
 @bot.message_handler(commands=['menu'])
 def menu_command(message):
-    bot.reply_to(message, "Выбери раздел или просто напиши вопрос:", reply_markup=build_main_menu())
+    bot.reply_to(message, MENU_MAIN_TEXT, reply_markup=build_main_menu_markup())
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("menu_"))
 def main_menu_callback(call):
@@ -256,61 +271,87 @@ def main_menu_callback(call):
     action = call.data.replace("menu_", "")
     bot.answer_callback_query(call.id)
 
-    if action == "about":
-        bot.send_message(call.message.chat.id,
-            "О боте:\n\nЭтот бот появился из обычной боли любого продавца — каждое описание товара съедает время, которое лучше потратить на сам бизнес.\n\nТеперь хватает одной фразы с названием товара, и через 10 секунд готов текст, который реально разбирается в брендах и моделях, а не лепит общие слова.\n\nЧто умеет бот:\n- Писать описания для Avito, Wildberries и Ozon\n- Распознавать товар по фото\n- Общаться на 10 языках\n- Переписывать, сокращать и редактировать тексты прямо в диалоге\n- Разбираться в брендах, моделях, материалах и технологиях\n\nПросто напиши название товара — начнём.")
-
-    elif action == "subscription":
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("Оплатить Telegram Stars (мгновенно)", callback_data="pay_stars"))
-        bot.send_message(call.message.chat.id,
-            "Подписка снимает лимит на количество запросов и даёт постоянный доступ ко всем функциям бота.\n\n"
-            "Telegram Stars — оплата мгновенная, подписка активируется автоматически. Нажми кнопку ниже.\n\n"
-            "Перевод на карту (160 ₽ + отзыв о работе сервиса) — переведи 160 ₽ на карту " + CARD_NUMBER + ", оставь короткий отзыв о боте и пришли скриншот перевода вместе с командой /myid. Активирую вручную в течение часа.",
-            reply_markup=markup)
-
-    elif action == "settings":
-        s = get_settings(uid)
-        bot.send_message(call.message.chat.id,
-            "Настройки:\n\nВыбери модель ИИ, площадку, тон и длину текста по умолчанию.",
-            reply_markup=build_settings_markup(s))
-
+    if action == "main":
+        safe_edit(call, MENU_MAIN_TEXT, build_main_menu_markup())
+    elif action == "about":
+        safe_edit(call, MENU_ABOUT_TEXT, build_about_markup())
     elif action == "support":
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("Написать в поддержку", url="https://t.me/" + OWNER_USERNAME))
-        bot.send_message(call.message.chat.id,
-            "Что-то пошло не так или есть идея как улучшить бота? Нажми кнопку ниже — ответим быстро.",
-            reply_markup=markup)
+        safe_edit(call, MENU_SUPPORT_TEXT, build_support_markup())
+    elif action == "subscription":
+        safe_edit(call, get_sub_text(), build_sub_markup())
+    elif action == "settings":
+        safe_edit(call, SETTINGS_MAIN_TEXT, build_settings_main_markup())
 
-@bot.message_handler(commands=['language'])
-def language_command(message):
-    bot.reply_to(message, "Выбери язык / Choose your language:", reply_markup=build_language_markup())
+def safe_edit(call, text, markup):
+    try:
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup)
+    except Exception:
+        bot.send_message(call.message.chat.id, text, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_open_") or call.data == "set_reset")
+def settings_open_callback(call):
+    uid = call.from_user.id
+    s = get_settings(uid)
+    bot.answer_callback_query(call.id)
+
+    if call.data == "set_reset":
+        user_settings[uid] = {"model": "smart", "platform": "auto", "tone": "auto", "length": "auto"}
+        bot.answer_callback_query(call.id, "Настройки сброшены")
+        safe_edit(call, SETTINGS_MAIN_TEXT, build_settings_main_markup())
+        return
+
+    section = call.data.replace("set_open_", "")
+    if section == "model":
+        safe_edit(call, "🤖 Выберите модель", build_model_markup(s))
+    elif section == "platform":
+        safe_edit(call, "🛍️ Выберите площадку", build_platform_markup(s))
+    elif section == "tone":
+        safe_edit(call, "✍️ Выберите стиль", build_tone_markup(s))
+    elif section == "length":
+        safe_edit(call, "📄 Выберите длину", build_length_markup(s))
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_model_") or call.data.startswith("set_platform_") or call.data.startswith("set_tone_") or call.data.startswith("set_length_"))
+def settings_value_callback(call):
+    uid = call.from_user.id
+    s = get_settings(uid)
+    data = call.data
+
+    if data.startswith("set_model_"):
+        s["model"] = data.replace("set_model_", "")
+        bot.answer_callback_query(call.id, "Обновлено")
+        safe_edit(call, "🤖 Выберите модель", build_model_markup(s))
+    elif data.startswith("set_platform_"):
+        s["platform"] = data.replace("set_platform_", "")
+        bot.answer_callback_query(call.id, "Обновлено")
+        safe_edit(call, "🛍️ Выберите площадку", build_platform_markup(s))
+    elif data.startswith("set_tone_"):
+        s["tone"] = data.replace("set_tone_", "")
+        bot.answer_callback_query(call.id, "Обновлено")
+        safe_edit(call, "✍️ Выберите стиль", build_tone_markup(s))
+    elif data.startswith("set_length_"):
+        s["length"] = data.replace("set_length_", "")
+        bot.answer_callback_query(call.id, "Обновлено")
+        safe_edit(call, "📄 Выберите длину", build_length_markup(s))
 
 @bot.message_handler(commands=['new'])
 def new_topic(message):
     uid = message.from_user.id
     user_history[uid] = []
-    bot.reply_to(message, "Начинаем новый разговор с чистого листа.\n\nПредыдущий контекст сброшен — бот забыл прошлый товар и все правки к нему. Это полезно, если переходишь к описанию совсем другой вещи, чтобы детали не смешивались.\n\nПросто напиши название нового товара и детали (бренд, цвет, состояние, материал), или пришли фото — начнём заново.")
-
-@bot.message_handler(commands=['about'])
-def about_command(message):
-    bot.reply_to(message, "О боте:\n\nЭтот бот появился из обычной боли любого продавца — каждое описание товара съедает время, которое лучше потратить на сам бизнес.\n\nТеперь хватает одной фразы с названием товара, и через 10 секунд готов текст, который реально разбирается в брендах и моделях, а не лепит общие слова.\n\nИм уже пользуются продавцы на Avito, Wildberries и Ozon — присоединяйся.")
+    bot.reply_to(message, "🔄 Начинаем с чистого листа.\n\nПредыдущий контекст сброшен — бот забыл прошлый товар и все правки к нему. Это полезно, если переходишь к описанию совсем другой вещи, чтобы детали не смешивались.\n\nПросто напиши название нового товара и детали, или пришли фото — начнём заново.")
 
 @bot.message_handler(commands=['support'])
 def support_command(message):
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("Написать в поддержку", url="https://t.me/" + OWNER_USERNAME))
-    bot.reply_to(message, "Что-то пошло не так или есть идея как улучшить бота? Нажми кнопку ниже — ответим быстро.", reply_markup=markup)
+    markup.add(InlineKeyboardButton("✉️ Написать в поддержку", url="https://t.me/" + OWNER_USERNAME))
+    bot.reply_to(message, MENU_SUPPORT_TEXT, reply_markup=markup)
 
 @bot.message_handler(commands=['referral'])
 def referral_command(message):
     uid = message.from_user.id
     link = "https://t.me/" + BOT_USERNAME + "?start=ref_" + str(uid)
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("Поделиться ссылкой", switch_inline_query=link))
-    bot.reply_to(message,
-        "Приглашай друзей и получай бонусные запросы!\n\nЗа каждого, кто перейдёт по твоей ссылке и запустит бота, тебе начислится +" + str(REFERRAL_BONUS) + " бесплатных запроса.",
-        reply_markup=markup)
+    markup.add(InlineKeyboardButton("📤 Поделиться ссылкой", switch_inline_query=link))
+    bot.reply_to(message, "🎁 Приглашай друзей и получай бонусные запросы!\n\nЗа каждого, кто перейдёт по твоей ссылке и запустит бота, тебе начислится +" + str(REFERRAL_BONUS) + " бесплатных запроса.", reply_markup=markup)
 
 @bot.message_handler(commands=['history'])
 def history_command(message):
@@ -323,7 +364,7 @@ def history_command(message):
     for i, item in enumerate(items):
         preview = item.replace("\n", " ")[:45]
         markup.add(InlineKeyboardButton(str(i + 1) + ") " + preview + "...", callback_data="hist_" + str(i)))
-    bot.reply_to(message, "Твои последние описания. Нажми на нужное чтобы вернуться и продолжить редактировать:", reply_markup=markup)
+    bot.reply_to(message, "📜 Последние описания. Нажми чтобы вернуться и продолжить редактировать:", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("hist_"))
 def history_callback(call):
@@ -335,55 +376,27 @@ def history_callback(call):
         return
     selected_text = items[idx]
     settings_ = get_settings(uid)
-    lang = get_language(uid)
-    system_prompt = build_system_prompt(settings_, lang)
     user_history[uid] = [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": build_system_prompt(settings_)},
         {"role": "assistant", "content": selected_text}
     ]
     bot.answer_callback_query(call.id, "Загружено")
-    bot.send_message(call.message.chat.id, "Вернулся к этому описанию, можно редактировать:\n\n" + selected_text)
+    bot.send_message(call.message.chat.id, "Вернулся к этому описанию. Можно продолжать редактировать:\n\n" + selected_text)
 
 @bot.message_handler(commands=['stats'])
 def stats_command(message):
     if message.from_user.id != OWNER_ID:
         return
     active_subs = sum(1 for uid, exp in pro_users.items() if exp > datetime.now())
-    bot.reply_to(message, "Статистика:\n\nВсего пользователей: " + str(len(all_users)) + "\nАктивных подписок: " + str(active_subs) + "\nПришло по рефералке: " + str(len(referred_by)))
+    bot.reply_to(message, "📊 Статистика:\n\nПользователей всего: " + str(len(all_users)) + "\nАктивных подписок: " + str(active_subs) + "\nПришло по рефералке: " + str(len(referred_by)))
 
 @bot.message_handler(commands=['settings'])
 def settings_command(message):
-    uid = message.from_user.id
-    s = get_settings(uid)
-    bot.reply_to(message, "Настройки:\n\nВыбери модель ИИ, площадку, тон и длину текста по умолчанию.", reply_markup=build_settings_markup(s))
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("model_") or call.data.startswith("platform_") or call.data.startswith("tone_") or call.data.startswith("length_"))
-def settings_callback(call):
-    uid = call.from_user.id
-    s = get_settings(uid)
-    if call.data.startswith("model_"):
-        s["model"] = call.data.split("_")[1]
-    elif call.data.startswith("platform_"):
-        s["platform"] = call.data.split("_", 1)[1]
-    elif call.data.startswith("tone_"):
-        s["tone"] = call.data.split("_")[1]
-    elif call.data.startswith("length_"):
-        s["length"] = call.data.split("_")[1]
-    bot.answer_callback_query(call.id, "Обновлено")
-    try:
-        bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=build_settings_markup(s))
-    except Exception:
-        pass
+    bot.reply_to(message, SETTINGS_MAIN_TEXT, reply_markup=build_settings_main_markup())
 
 @bot.message_handler(commands=['subscription'])
 def subscription_command(message):
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("Оплатить Telegram Stars (мгновенно)", callback_data="pay_stars"))
-    bot.reply_to(message,
-        "Подписка снимает лимит на количество запросов и даёт постоянный доступ ко всем функциям бота.\n\n"
-        "Telegram Stars — оплата мгновенная, подписка активируется автоматически. Нажми кнопку ниже.\n\n"
-        "Перевод на карту (160 ₽ + отзыв о работе сервиса) — переведи 160 ₽ на карту " + CARD_NUMBER + ", оставь короткий отзыв о боте и пришли скриншот перевода вместе с командой /myid. Активирую вручную в течение часа.",
-        reply_markup=markup)
+    bot.reply_to(message, get_sub_text(), reply_markup=build_sub_markup())
 
 @bot.callback_query_handler(func=lambda call: call.data == "pay_stars")
 def buy_stars(call):
@@ -399,7 +412,7 @@ def got_payment(message):
     uid = message.from_user.id
     expiry = datetime.now() + timedelta(days=30)
     pro_users[uid] = expiry
-    bot.reply_to(message, "Оплата прошла! Подписка активна до " + expiry.strftime("%d.%m.%Y") + ".")
+    bot.reply_to(message, "✅ Оплата прошла! Подписка активна до " + expiry.strftime("%d.%m.%Y") + ".")
 
 @bot.message_handler(commands=['myid'])
 def myid(message):
@@ -450,17 +463,15 @@ def handle_photo(message):
             bot.reply_to(message, "Бесплатные запросы закончились. Напиши /subscription.")
             return
     bot.send_chat_action(message.chat.id, 'typing')
-    lang = get_language(uid)
-    lang_name = LANGUAGES.get(lang, "Russian")
     try:
         file_info = bot.get_file(message.photo[-1].file_id)
         downloaded = bot.download_file(file_info.file_path)
         b64_image = base64.b64encode(downloaded).decode('utf-8')
-        caption = message.caption if message.caption else "Describe this product."
+        caption = message.caption if message.caption else "Опиши этот товар как продающее описание для маркетплейса."
         response = client.chat.completions.create(
             model=VISION_MODEL,
             messages=[
-                {"role": "system", "content": "You are a product expert and marketplace copywriter. Look at the photo carefully. If the user caption explicitly states a brand or model name, you must trust that information completely and not override it with your own visual guess. Write a selling description in " + lang_name + ", 5-8 sentences, natural language."},
+                {"role": "system", "content": "Ты эксперт по товарам и копирайтер маркетплейсов. Внимательно рассмотри фото. Если в подписи пользователя явно указан бренд или модель, доверяй этому полностью и не переопределяй визуальной догадкой. Напиши продающее описание на русском языке, 5-8 предложений, естественным языком, без канцелярита."},
                 {"role": "user", "content": [
                     {"type": "text", "text": caption},
                     {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + b64_image}}
@@ -482,7 +493,6 @@ def generate(message):
     all_users.add(uid)
     history = get_user_state(uid)
     settings_ = get_settings(uid)
-    lang = get_language(uid)
     is_new_topic = len(history) == 0
     if not is_unlimited(uid) and is_new_topic:
         if uid not in user_free_left:
@@ -492,7 +502,7 @@ def generate(message):
             return
     bot.send_chat_action(message.chat.id, 'typing')
     if is_new_topic:
-        history.append({"role": "system", "content": build_system_prompt(settings_, lang)})
+        history.append({"role": "system", "content": build_system_prompt(settings_)})
     history.append({"role": "user", "content": message.text})
     trimmed = [history[0]] + history[-11:] if len(history) > 12 else history
     model_name = MODELS.get(settings_.get("model", "smart"), MODELS["smart"])
